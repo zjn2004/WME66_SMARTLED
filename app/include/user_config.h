@@ -24,7 +24,6 @@
 
 #ifndef __USER_CONFIG_H__
 #define __USER_CONFIG_H__
-#define RESTORE_KEEP_TIMER 0
 
 #define USE_OPTIMIZE_PRINTF
 extern  int need_factory_reset ;
@@ -68,7 +67,7 @@ extern VIRTUAL_DEV virtual_device;
 /*sandbox key/secret*/
 #define ALINK_KEY_SANDBOX "dpZZEpm9eBfqzK7yVeLq"
 #define ALINK_SECRET_SANDBOX "THnfRRsU5vu6g6m9X6uFyAjUWflgZ0iyGjdEneKm"
-/*设备硬件信息:系统上电后读取的硬件/固件信息,此处为演示需要,直接定义为宏.产品对接时,需要调用自身接口获取*/
+
 #define DEV_SN "1234567890"
 #define DEV_VERSION "1.0.3"
 #define DEV_MAC "19:FE:34:A2:C7:1A"	//"AA:CC:CC:CA:CA:01" // need get from device

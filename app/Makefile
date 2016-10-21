@@ -63,31 +63,23 @@ LINKFLAGS_eagle.app.v6 = \
 	-Wl,-static						\
 	-Wl,--start-group					\
 	-lcirom \
-	-lcrypto	\
-	-lespconn	\
-	-lespnow	\
-	-lfreertos	\
 	-lgcc					\
 	-lhal					\
-	-ljson	\
-	-llwip	\
-	-lmain	\
-	-lmesh	\
-	-lmirom	\
-	-lnet80211	\
-	-lnopoll	\
 	-lphy	\
 	-lpp	\
-	-lpwm	\
+	-lnet80211	\
+	-lwpa	\
+	-lmain	\
+	-lfreertos	\
+	-llwip	\
+	-lssl	\
+	-ljson  \
 	-lsmartconfig	\
 	-lspiffs	\
-	-lssl	\
-	-lwpa	\
-	-lwps		\
 	$(DEP_LIBS_eagle.app.v6)					\
 	-lcrypto \
 	-lalink \
-	-lzconfig \
+	-laws \
 	-Wl,--end-group
 
 DEPENDS_eagle.app.v6 = \

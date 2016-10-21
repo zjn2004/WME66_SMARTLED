@@ -1,27 +1,3 @@
-/*
- * ESPRSSIF MIT License
- *
- * Copyright (c) 2015 <ESPRESSIF SYSTEMS (SHANGHAI) PTE LTD>
- *
- * Permission is hereby granted for use on ESPRESSIF SYSTEMS ESP8266 only, in which case,
- * it is free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the Software is furnished
- * to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or
- * substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- */
-
 #include "esp_common.h" 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -57,36 +33,6 @@ static int is_long_press = 0;
 #define SOFTAP_FLAG            SMARTCONFIG_FLAG + 1
 #define SMARTCONFIG_OFF        SOFTAP_FLAG + 1
 
-
-static char vendor_ssid[32];
-static char vendor_passwd[64];
-static char *vendor_tpsk = "PLnBaCPHF7icf65a5nJmcL2GZC+w3vwCnH36k8O91og=";
-int ICACHE_FLASH_ATTR vendor_callback(char *ssid, char *passwd, char *bssid, unsigned int security, char channel) 
-{
-	if (!ssid) {
-        int ret = 0;
-        ret = readSmartConfigFlag();    // -1 read flash fail!
-        
-		os_printf("zconfig timeout! setSmartConfigFlag %d\n",ret+1);
-        
-        setSmartConfigFlag(ret+1);
-        
-        vTaskDelay(100 / portTICK_RATE_MS);	 // 100 ms
-		system_restart();
-	} else {
-    	setSmartConfigFlag(0);
-        wifi_led_set_status(WIFI_LED_CONNECTING_AP);
-		os_printf("ssid:%s ,key:%s\n", ssid,passwd);
-		struct station_config *config = (struct station_config *)zalloc(sizeof(struct station_config));
-		strncpy(config->ssid, ssid, 32);
-		strncpy(config->password, passwd, 64);
-		wifi_station_set_config(config);
-		free(config);
-		wifi_station_connect();
-	} 
-
-} 
-
 unsigned portBASE_TYPE ICACHE_FLASH_ATTR stack_free_size() 
 {
 	xTaskHandle taskhandle;
@@ -112,46 +58,49 @@ void ICACHE_FLASH_ATTR startdemo_task(void *pvParameters)
 }
 
 int need_notify_app = 0;
-#if 1
 void ICACHE_FLASH_ATTR smartconfig_task(void *pvParameters) 
 {
     wifi_led_set_status(WIFI_LED_SMARTCONFIG);
 
-    os_printf("\nsmartconfig_task,tpsk %s\n",vendor_tpsk);
-	zconfig_start(vendor_callback, vendor_tpsk);   // alink smart config start
+    char ssid[32 + 1];
+    char passwd[64 + 1];
+    char bssid[6];
+    char auth;
+    char encry;
+    char channel;
+    int ret;
 	
-	os_printf("waiting network ready...\r\n");
-	while (1) {
-		// device could show smart config status here, such as light Flashing.
-		int ret = wifi_station_get_connect_status();
-		if (ret == STATION_GOT_IP)
-			break;
-		vTaskDelay(100 / portTICK_RATE_MS);
-	}
-	need_notify_app = 1;
-	vTaskDelete(NULL);
-}
-#else
-void ICACHE_FLASH_ATTR wificonnect_task(void *pvParameters)  // it is a test router cfg info for wifi conncted
-{
-    signed char ret;
-    wifi_set_opmode(STATION_MODE);
-    struct ip_info sta_ipconfig;
-    struct station_config config;
-    bzero(&config, sizeof(struct station_config));
-    sprintf(config.ssid, "IOT_DEMO_TEST");
-    sprintf(config.password, "123456789");
-    wifi_station_set_config(&config);
-    wifi_station_connect();
-    wifi_get_ip_info(STATION_IF, &sta_ipconfig);
-    while(sta_ipconfig.ip.addr == 0 ) {
-        vTaskDelay(1000 / portTICK_RATE_MS);
-        wifi_get_ip_info(STATION_IF, &sta_ipconfig);
+    os_printf("smartconfig_task : aws_start\n");
+    aws_start(NULL,NULL,NULL,NULL);
+
+    ret = aws_get_ssid_passwd(&ssid[0], &passwd[0], &bssid[0], &auth, &encry, &channel);
+    if (!ret) {
+        int flag = 0;
+        flag = readSmartConfigFlag();    // -1 read flash fail!
+        
+		os_printf("aws timeout! setSmartConfigFlag %d\n",flag+1);
+        
+        setSmartConfigFlag(flag+1);
+        
+        vTaskDelay(100 / portTICK_RATE_MS);	 // 100 ms
+		system_restart();
+        
+    	goto out;
     }
+    else
+    {
+    	setSmartConfigFlag(0);
+        wifi_led_set_status(WIFI_LED_CONNECTING_AP);
+        
+    	os_printf("ssid:%s, passwd:%s\n", ssid, passwd);
+    	vendor_connect_ap(ssid, passwd);
+    	need_notify_app = 1;
+    }
+out:
+    aws_destroy();
     vTaskDelete(NULL);
 }
 
-#endif
 
 
 void alink_softap_setup(void)
@@ -467,10 +416,6 @@ void ICACHE_FLASH_ATTR alink_softap_task(void *pvParameters)
 	return;
 }
 
-
-
-#if  1				// wifi
-    //wifi_set_event_handler_cb(wifi_event_hand_function);
 static void ICACHE_FLASH_ATTR wifi_event_hand_function(System_Event_t * event) 
 {  
     u32_t addr;
@@ -508,10 +453,6 @@ static void ICACHE_FLASH_ATTR wifi_event_hand_function(System_Event_t * event)
             break;  
     }
 }
-
-
- 
-#endif	
 
 #ifdef ENABLE_GPIO_KEY
 void ICACHE_FLASH_ATTR setLed1State(int flag) 
@@ -623,8 +564,6 @@ void ICACHE_FLASH_ATTR sw2_key_short_press()
 	//ota_test();
 }
 
-
-
 int ICACHE_FLASH_ATTR readSmartConfigFlag() {
 	int res = 0;
 	uint32  value = 0;
@@ -662,21 +601,6 @@ int ICACHE_FLASH_ATTR setSmartConfigFlag(int value)
 
 
 #endif
-void ICACHE_FLASH_ATTR wificonnect_test_conn_ap(void) 
-{
-    signed char ret;
-	ESP_DBG(("set a test conn router."));
-    wifi_set_opmode(STATION_MODE);
-    struct ip_info sta_ipconfig;
-    struct station_config config;
-    bzero(&config, sizeof(struct station_config));
-    sprintf(config.ssid, "IOT_DEMO_TEST");
-    sprintf(config.password, "123456789");
-    wifi_station_set_config(&config);
-    wifi_station_connect();
-    wifi_get_ip_info(STATION_IF, &sta_ipconfig);
-	return;
-}
 
 static void ICACHE_FLASH_ATTR sys_show_rst_info(void)
 {
@@ -727,7 +651,7 @@ void ICACHE_FLASH_ATTR user_demo(void)
     user_custom_init();
 #endif    
 
-	os_printf("SDK version:%s,alink version:%s\n", system_get_sdk_version(), CUS_GLOBAL_VER);
+	os_printf("SDK version:%s\n", system_get_sdk_version());
 	os_printf("heap_size %d\n", system_get_free_heap_size());
     user_check_rst_info();
 #ifdef ENABLE_GPIO_KEY   // demo for smartplug class products

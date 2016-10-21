@@ -64,28 +64,15 @@ char *device_attr[5] = { "OnOff_Power", "Color_Temperature", "Light_Brightness",
 const char *main_dev_params =
     "{\"OnOff_Power\": { \"value\": \"%d\" }, \"Color_Temperature\": { \"value\": \"%d\" }, \"Light_Brightness\": { \"value\": \"%d\" }, \"TimeDelay_PowerOff\": { \"value\": \"%d\"}, \"WorkMode_MasterLight\": { \"value\": \"%d\"}}";
 
-char device_status_change = 1;
-/*设备上报数据,需要客户根据具体业务去实现*/
+static char device_status_change = 1;
 
 #define buffer_size 256
 static int ICACHE_FLASH_ATTR alink_device_post_data(alink_down_cmd_ptr down_cmd)
 {
 	alink_up_cmd up_cmd;
 	int ret = ALINK_ERR;
-	//char buffer[1024];
 	char *buffer = NULL;
-//      static int count=0;
 	if (device_status_change) {
-
-/*		count++;
-		if(count>20)
-		{
-
-			device_status_change=0;
-			wsf_deb("alink_device_post_raw_data skip");
-			return 0;
-		}*/
-
 		wsf_deb("##[%s][%s|%d]Malloc %u. Available memory:%d.\n", __FILE__, __FUNCTION__, __LINE__,
 			buffer_size, system_get_free_heap_size());
 
@@ -146,34 +133,8 @@ int ICACHE_FLASH_ATTR main_dev_set_device_status_callback(alink_down_cmd_ptr dow
 	wsf_deb("%s %d\n%s\n",down_cmd->uuid,down_cmd->method, down_cmd->param);
 
 	jptr = json_parse(down_cmd->param, strlen(down_cmd->param));
-#if USER_UART_CTRL_DEV_EN
-	for (i = 0; i < 5; i++) 
-	{
-		jstr = json_object_object_get_e(jptr, device_attr[i]);
-		jstr_value = json_object_object_get_e(jstr, "value");
-		value_str = json_object_to_json_string_e(jstr_value);
-		
-		if (value_str) {
-			value = atoi(value_str);
-			cus_wifi_handler_alinkdata2mcu(i, value);
-
-			ESP_DBG(("power:0x%X,temp_value:0x%X,light_value:0x%X,time_delay:0x%X,woke_mode:0x%X",virtual_device.power,\
-				virtual_device.temp_value,virtual_device.light_value,virtual_device.time_delay,virtual_device.work_mode));
-		}
-	}
-#endif
-#if USER_PWM_LIGHT_EN
-	USER_LIGHT_DATA *user_light_data_ptr = zalloc(sizeof(USER_LIGHT_DATA));
 
 
-	   user_light_data_ptr->light_period=1000;
-	   user_light_data_ptr->light_r=virtual_device.temp_value;
-	   user_light_data_ptr->light_g=virtual_device.light_value;
-	// Set r g b w data,Developers need to parse the real device parameters corresponding to the Json package
-	light_set_aim(user_light_data_ptr->light_r,user_light_data_ptr->light_g,user_light_data_ptr->light_b,user_light_data_ptr->light_cw,user_light_data_ptr->light_ww,user_light_data_ptr->light_period);
-
-	free(user_light_data_ptr);
-#endif
 #if USER_VIRTUAL_DEV_TEST
 	for (i = 0; i < 5; i++) 
 	{
@@ -266,14 +227,6 @@ static int ICACHE_FLASH_ATTR execute_cmd(const char *rawdata, int len)
 			if (virtual_device.light_value != rawdata[i]) {
 				virtual_device.light_value = rawdata[i];
 			}
-/*			// for test alink unbind
-			if (virtual_device.light_value == 0x5a) {
-				wsf_deb("test for alink unbind\n");
-				virtual_device.light_value = 0x59;
-				alink_unbind();
-			} else
-				wsf_deb("0x%2x", virtual_device.light_value);
-*/
 			break;
 		case 6:
 			if (virtual_device.time_delay != rawdata[i]) {
@@ -373,7 +326,7 @@ int ICACHE_FLASH_ATTR rawdata_set_callback(char *rawdata, int len)
 
 #endif //PASS_THROUGH
 
-/*alink-sdk ״̬��ѯ�ص�����*/
+/*alink-sdk ״̬��ѯ�ص�����*/
 int ICACHE_FLASH_ATTR alink_handler_systemstates_callback(void *dev_mac, void *sys_state)
 {
 	char uuid[33] = { 0 };
@@ -555,21 +508,8 @@ int ICACHE_FLASH_ATTR alink_demo()
 
 	os_printf("%s %d wait time=%d \n", __FUNCTION__, __LINE__, ALINK_WAIT_FOREVER);
 
-	ESP_DBG(("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"));
-	if(ALINK_OK == alink_wait_connect(NULL, ALINK_WAIT_FOREVER))	//wait main device login, -1 means wait forever
-	{
-#if USER_UART_CTRL_DEV_EN
-		char send_buf_alink_connOK[]={0x31, 0x31, 0x31, 0x31}; // demo data to tell uart mcu dev, alink conn success
-		uart0_write_data(send_buf_alink_connOK,sizeof(send_buf_alink_connOK));
-#endif
-	}
-	else
-	{
-#if USER_UART_CTRL_DEV_EN
-		char send_buf_alink_connFailed[]={0x32, 0x32, 0x32, 0x32}; // demo data to tell uart mcu dev, alink conn success
-		uart0_write_data(send_buf_alink_connFailed,sizeof(send_buf_alink_connFailed));
-#endif
-	}
+	alink_wait_connect(NULL, ALINK_WAIT_FOREVER);	//wait main device login, -1 means wait forever
+
 	if(need_notify_app) {
 		need_notify_app = 0;
 		uint8 macaddr[6];
@@ -577,19 +517,13 @@ int ICACHE_FLASH_ATTR alink_demo()
 		if (wifi_get_macaddr(0, macaddr)) {
 			os_printf("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 			snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
-			zconfig_notify_app(DEV_MODEL, mac, ""); // if not factory reset , 
+			aws_notify_app(DEV_MODEL, mac, ""); // if not factory reset , 
 		}
 	}
-	//printf("%s %d \n",__FUNCTION__,__LINE__);
-
-	//printf("alink_demo heap_size %d\n",system_get_free_heap_size());
-	//system_print_meminfo();
 
 
 	/* 设备主动上报数据 */
 	while (sample_running) {
-
-		//os_printf("%s %d \n",__FUNCTION__,__LINE__);
 #ifdef PASS_THROUGH
 		alink_device_post_raw_data();
 #else
@@ -618,7 +552,7 @@ hnt_device_status_change(void)
 
 char *platform_get_os_version(char os_ver[PLATFORM_OS_VERSION_LEN])
 {
-    return strncpy(os_ver, "1.0", PLATFORM_OS_VERSION_LEN);
+    return strncpy(os_ver, "1.3.0(68c9e7b", PLATFORM_OS_VERSION_LEN);
 }
 char *platform_get_module_name(char name_str[PLATFORM_MODULE_NAME_LEN])
 {
