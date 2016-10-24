@@ -243,10 +243,8 @@ bool alink_softap_tcp_server(void)
 
 	buf = malloc(buf_size);
 	msg = malloc(msg_size);
-//	assert(fd && msg);
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
-//	assert(fd >= 0);
 
 	bzero(&server, sizeof(server));
 	server.sin_family = AF_INET;
@@ -254,13 +252,10 @@ bool alink_softap_tcp_server(void)
 	server.sin_port = htons(SOFTAP_TCP_SERVER_PORT);
 
 	ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-//	assert(!ret);
 
 	ret = bind(fd, (struct sockaddr *)&server, sizeof(server));
-//	assert(!ret);
 
 	ret = listen(fd, 10);
-//	assert(!ret);
 
     in_addr_t ip_addr;
     ip_addr = ntohl(server.sin_addr.s_addr);
@@ -282,13 +277,12 @@ bool alink_softap_tcp_server(void)
     maxsock = fd;
     
     ret = select(maxsock + 1, &fds, NULL, NULL, &tv);//wait
-    //log_printf("select ret=%d\n", ret);
+    os_printf("select ret=%d\n", ret);
     if(ret > 0) 
     {
         if (FD_ISSET(fd, &fds))
         {
                 connfd = accept(fd, (struct sockaddr *)&client, &socklen);
-            //  assert(connfd > 0);
             
                 ip_addr = ntohl(client.sin_addr.s_addr);
             
@@ -300,7 +294,6 @@ bool alink_softap_tcp_server(void)
             
                 len = recvfrom(connfd, buf, buf_size, 0,
                         (struct sockaddr *)&client, &socklen);
-            //  assert(len >= 0);
             
                 buf[len] = 0;
                 info("softap tcp server recv: %s\n", buf);
@@ -325,7 +318,6 @@ bool alink_softap_tcp_server(void)
             
                 len = sendto(connfd, msg, strlen(msg), 0,
                         (struct sockaddr *)&client, socklen);
-            //  assert(len >= 0);
                 info("ack %s\n", msg);
             
                 close(connfd);

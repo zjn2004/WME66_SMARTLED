@@ -517,7 +517,8 @@ int ICACHE_FLASH_ATTR alink_demo()
 		if (wifi_get_macaddr(0, macaddr)) {
 			os_printf("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 			snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
-			aws_notify_app(DEV_MODEL, mac, ""); // if not factory reset , 
+			os_printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!aws_notify_app %s %s\n", DEV_MODEL,mac);
+            aws_notify_app(DEV_MODEL, mac, ""); // if not factory reset , 
 		}
 	}
 
