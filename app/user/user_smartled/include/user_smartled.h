@@ -1,6 +1,32 @@
 #ifndef _USER_SMARTLED_H
 #define _USER_SMARTLED_H
 
+/* device info */
+#define DEV_NAME "ALINKTEST"
+#define DEV_CATEGORY "LIVING"
+#define DEV_TYPE "LIGHT"
+#define DEV_BRAND "SEAING"
+
+#ifdef PASS_THROUGH
+#define DEV_MODEL "ALINKTEST_LIVING_LIGHT_SMARTLED_LUA"
+#define ALINK_KEY "bIjq3G1NcgjSfF9uSeK2"
+#define ALINK_SECRET "W6tXrtzgQHGZqksvJLMdCPArmkecBAdcr2F5tjuF"
+#else
+#define DEV_MODEL "ALINKTEST_LIVING_LIGHT_SMARTLED"
+#define ALINK_KEY "ljB6vqoLzmP8fGkE6pon"
+#define ALINK_SECRET "YJJZjytOCXDhtQqip4EjWbhR95zTgI92RVjzjyZF"
+#endif
+#define DEV_MANUFACTURE "ALINKTEST"
+/*sandbox key/secret*/
+#define ALINK_KEY_SANDBOX "dpZZEpm9eBfqzK7yVeLq"
+#define ALINK_SECRET_SANDBOX "THnfRRsU5vu6g6m9X6uFyAjUWflgZ0iyGjdEneKm"
+
+#define DEV_SN "1234567890"
+#define DEV_VERSION "1.0.3"
+#define DEV_MAC "19:FE:34:A2:C7:1A"	//"AA:CC:CC:CA:CA:01" // need get from device
+#define DEV_CHIPID "3D0044000F47333139373030"	// need get from device
+
+
 #define GPIO_VALUE_0 0
 #define GPIO_VALUE_1 1
 
@@ -40,9 +66,9 @@ typedef void (*hnt_power_led_func)(unsigned char);
 #define POWER_LED_OFF            0
 
 int ICACHE_FLASH_ATTR
-eSmartLedGetPower(void);
+eSmartLedGetPower(char *paramName, char *value);
 
 int ICACHE_FLASH_ATTR
-eSmartLedSetPower(uint8 value);
+eSmartLedSetPower(char *paramName, char *value);
 
 #endif /*_USER_SMARTLED_H */

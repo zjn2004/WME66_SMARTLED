@@ -11,22 +11,11 @@
 #if USER_UART_CTRL_DEV_EN
 #include "user_uart.h" // user uart handler head
 #endif
-#if USER_PWM_LIGHT_EN
-#include "user_light.h"  // user pwm light head
-#endif
+
 #include "ledctl.h" 
+#include "hnt_interface.h" 
 
 #define ENABLE_GPIO_KEY
-
-#ifdef ENABLE_GPIO_KEY
-#include "freertos/semphr.h"
-#include "driver/gpio.h"
-#include "driver/key.h"
-#include "espressif/esp8266/eagle_soc.h"
-struct single_key_param *single_key[2];
-struct keys_param keys;
-static int is_long_press = 0;
-#endif	
 
 #define SMARTCONFIG_SUCCESS    0
 #define SMARTCONFIG_FLAG       1
@@ -136,7 +125,7 @@ void alink_softap_setup(void)
     struct softap_config config;
     wifi_softap_get_config(&config);
     memset(config.ssid, 0, sizeof(config.ssid));
-	snprintf(config.ssid, 32, "alink_%s", DEV_MODEL);
+	snprintf(config.ssid, 32, "alink_%s", vendor_get_model());
     
     config.ssid_len = strlen(config.ssid);
     config.authmode = AUTH_OPEN;
@@ -164,13 +153,11 @@ unsigned char alink_bssid[6];
 
 #define SOFTAP_TCP_SERVER_PORT		(65125)
 
-/* json info parser */
 int get_ssid_and_passwd(char *msg)
 {
 	char *ptr, *end, *name;
 	int len;
 
-	//ssid
 	name = "\"ssid\":";
 	ptr = strstr(msg, name);
 	if (!ptr) {
@@ -182,11 +169,9 @@ int get_ssid_and_passwd(char *msg)
 	end = strchr(ptr, '"');
 	len = end - ptr;
 
-//	assert(len < sizeof(aws_ssid));
 	strncpy(alink_ssid, ptr, len);
 	alink_ssid[len] = '\0';
 
-	//passwd
 	name = "\"passwd\":";
 	ptr = strstr(msg, name);
 	if (!ptr) {
@@ -199,11 +184,9 @@ int get_ssid_and_passwd(char *msg)
 	end = strchr(ptr, '"');
 	len = end - ptr;
 
-//	assert(len < sizeof(aws_passwd));
 	strncpy(alink_passwd, ptr, len);
 	alink_passwd[len] = '\0';
 
-	//bssid-mac
 	name = "\"bssid\":";
 	ptr = strstr(msg, name);
 	if (!ptr) {
@@ -215,14 +198,6 @@ int get_ssid_and_passwd(char *msg)
 	while (*ptr++ == ' ');/* eating the beginning " */
 	end = strchr(ptr, '"');
 	len = end - ptr;
-
-#if 0
-	memset(aws_bssid, 0, sizeof(aws_bssid));
-
-	sscanf(ptr, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			&aws_bssid[0], &aws_bssid[1], &aws_bssid[2],
-			&aws_bssid[3], &aws_bssid[4], &aws_bssid[5]);
-#endif
 
 	return 0;
 exit:
@@ -310,11 +285,11 @@ bool alink_softap_tcp_server(void)
                 if (!ret) {
                     snprintf(msg, buf_size,
                         "{\"code\":1000, \"msg\":\"format ok\", \"model\":\"%s\", \"mac\":\"%s\"}",
-                        DEV_MODEL, mac);
+                        vendor_get_model(), mac);
                 } else
                     snprintf(msg, buf_size,
                         "{\"code\":2000, \"msg\":\"format error\", \"model\":\"%s\", \"mac\":\"%s\"}",
-                        DEV_MODEL, mac);
+                        vendor_get_model(), mac);
             
                 len = sendto(connfd, msg, strlen(msg), 0,
                         (struct sockaddr *)&client, socklen);
@@ -412,7 +387,6 @@ static void ICACHE_FLASH_ATTR wifi_event_hand_function(System_Event_t * event)
 {  
     u32_t addr;
 
-//    os_printf("\n****wifi_event_hand_function %d******\n", event->event_id);
     switch (event->event_id) 
     {  
         case EVENT_STAMODE_CONNECTED:     
@@ -446,55 +420,7 @@ static void ICACHE_FLASH_ATTR wifi_event_hand_function(System_Event_t * event)
     }
 }
 
-#ifdef ENABLE_GPIO_KEY
-void ICACHE_FLASH_ATTR setLed1State(int flag) 
-{
-	if (0 == flag) {
-		GPIO_OUTPUT_SET(GPIO_ID_PIN(12), 1);	// led 0ff
-	} else {
-		GPIO_OUTPUT_SET(GPIO_ID_PIN(12), 0);	// led on
-	}
-}
-
-void ICACHE_FLASH_ATTR setLed2State(int flag) 
-{
-	if (0 == flag) {
-		GPIO_OUTPUT_SET(GPIO_ID_PIN(15), 0);	// led off
-	} else {
-		GPIO_OUTPUT_SET(GPIO_ID_PIN(15), 1);	// led on
-	}
-}
-
-
 int need_factory_reset = 0;
-static int sw1_long_key_flag = 0;
-static int sw2_long_key_flag = 0;
-void ICACHE_FLASH_ATTR user_key_long_press(void) 
-{
-	os_printf("[%s][%d] user key long press \n\r",__FUNCTION__,__LINE__);
-	sw1_long_key_flag = 1;
-	setLed1State(1);
-	setLed2State(0);
-	need_factory_reset = 1;
-	os_printf("need_factory_reset =%d \n", need_factory_reset);
-
-	return;
-} 
-
-void ICACHE_FLASH_ATTR user_key_short_press(void) 
-{
-	int ret = 0;
-       if(sw1_long_key_flag) {
-           sw1_long_key_flag = 0;
-           return ;
-       }
-	os_printf("[%s][%d] user key press \n\r",__FUNCTION__,__LINE__);
-	setLed1State(0);
-	setLed2State(1);
-	setSmartConfigFlag(0x1);   // short press enter smartconfig
-	vTaskDelay(100);
-	system_restart();  // restart then enter to smartconfig mode
-} 
 
 #define MD5_STR_LEN 32
 #define MAX_URL_LEN 256
@@ -519,42 +445,6 @@ typedef struct
 
 extern FwOtaStatus_t fwOtaStatus;
 extern FwFileInfo_t fwFileInfo;
-extern void dumpFwInfo();
-extern void alink_ota_main_thread(FwFileInfo_t * pFwFileInfo);
-extern void alink_ota_init();
-#define pthread_mutex_init(a, b)sys_mutex_new(a)
-
-void ota_test()
-{
-    pthread_mutex_init(&fwOtaStatus.mutex,NULL);
-    alink_ota_init();
-    strcpy(fwFileInfo.fwMd5,"B3822931C345C88C9BA4AFB03C0C7295");
-    fwFileInfo.fwSize = 388388;
-    //strcpy(fwFileInfo.fwUrl,"http://otalink.alicdn.com/ALINKTEST_LIVING_LIGHT_SMARTLED_LUA/1.0.1/user1.2048.new.5.bin");
-    strcpy(fwFileInfo.fwUrl,"http://otalink.alicdn.com/ALINKTEST_LIVING_LIGHT_SMARTLED/1.0.1/user1.2048.new.5.bin");
-    strcpy(fwFileInfo.fwVersion,"1.0.1");
-    fwFileInfo.zip = 0;
-    dumpFwInfo();
-    create_thread(&fwOtaStatus.id, "firmware upgrade pthread", (void *)alink_ota_main_thread, &fwFileInfo, 0xc00);
-
-}
-void ICACHE_FLASH_ATTR sw2_key_long_press() 
-{
-	os_printf("sw2_key_long_press\n");
-    sw2_long_key_flag = 1;
-    setLed1State(0);
-    setLed2State(0);
-}
-
-void ICACHE_FLASH_ATTR sw2_key_short_press() 
-{
-	if (sw2_long_key_flag) {
-		sw2_long_key_flag = 0;
-		return ;
-    }
-    os_printf("sw2_key short \n");
-	//ota_test();
-}
 
 int ICACHE_FLASH_ATTR readSmartConfigFlag() {
 	int res = 0;
@@ -590,9 +480,6 @@ int ICACHE_FLASH_ATTR setSmartConfigFlag(int value)
 		os_printf("write flag(%d) success.", value);
 		return ALINK_OK;
 }
-
-
-#endif
 
 static void ICACHE_FLASH_ATTR sys_show_rst_info(void)
 {
@@ -638,17 +525,12 @@ void ICACHE_FLASH_ATTR user_demo(void)
 
     wifi_led_set_status(WIFI_LED_OFF);
     
-#if USER_VIRTUAL_DEV_TEST
 	uart_init_new();
     user_custom_init();
-#endif    
 
 	os_printf("SDK version:%s\n", system_get_sdk_version());
 	os_printf("heap_size %d\n", system_get_free_heap_size());
     user_check_rst_info();
-#ifdef ENABLE_GPIO_KEY   // demo for smartplug class products
-//	init_key();
-#endif	
 	wifi_set_event_handler_cb(wifi_event_hand_function);
 
 	wifi_set_opmode(STATION_MODE);
@@ -672,9 +554,6 @@ void ICACHE_FLASH_ATTR user_demo(void)
     
 	xTaskCreate(startdemo_task, "startdemo_task",(256*4), NULL, 2, NULL);
 	
-#if USER_PWM_LIGHT_EN
-	user_esp_test_pwm();  // this a test ctrl pwm data, real device not need this
-#endif
 #if USER_UART_CTRL_DEV_EN
 	user_uart_dev_start();  // create a task to handle uart data
 #endif

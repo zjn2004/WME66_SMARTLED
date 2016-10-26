@@ -31,7 +31,6 @@ extern  int need_factory_reset ;
 #define LFILE_SIZE 4096
 
 #define USER_UART_CTRL_DEV_EN 	 (0)   // support allink uart smart device
-#define USER_PWM_LIGHT_EN        (0)   // support alink pwm light  
 #define USER_VIRTUAL_DEV_TEST	 (1)
 
 #define CUS_GLOBAL_VER "AlinkV1.0.02-20160920"
@@ -50,36 +49,12 @@ typedef struct virtual_dev {   // real device update this Structure parameters
 
 extern VIRTUAL_DEV virtual_device;
 
-/* device info */
-#define DEV_NAME "ALINKTEST"
-#define DEV_CATEGORY "LIVING"
-#define DEV_TYPE "LIGHT"
-#ifdef PASS_THROUGH
-#define DEV_MODEL "ALINKTEST_LIVING_LIGHT_SMARTLED_LUA"
-#define ALINK_KEY "bIjq3G1NcgjSfF9uSeK2"
-#define ALINK_SECRET "W6tXrtzgQHGZqksvJLMdCPArmkecBAdcr2F5tjuF"
-#else
-#define DEV_MODEL "ALINKTEST_LIVING_LIGHT_SMARTLED"
-#define ALINK_KEY "ljB6vqoLzmP8fGkE6pon"
-#define ALINK_SECRET "YJJZjytOCXDhtQqip4EjWbhR95zTgI92RVjzjyZF"
-#endif
-#define DEV_MANUFACTURE "ALINKTEST"
-/*sandbox key/secret*/
-#define ALINK_KEY_SANDBOX "dpZZEpm9eBfqzK7yVeLq"
-#define ALINK_SECRET_SANDBOX "THnfRRsU5vu6g6m9X6uFyAjUWflgZ0iyGjdEneKm"
-
-#define DEV_SN "1234567890"
-#define DEV_VERSION "1.0.3"
-#define DEV_MAC "19:FE:34:A2:C7:1A"	//"AA:CC:CC:CA:CA:01" // need get from device
-#define DEV_CHIPID "3D0044000F47333139373030"	// need get from device
-
 void
 user_custom_init(void);
 
-void ICACHE_FLASH_ATTR
-hnt_device_status_change(void);
-
 #define USER_SMARTLED 1
+
+char* vendor_get_alink_secret(void);
 
 #endif
 

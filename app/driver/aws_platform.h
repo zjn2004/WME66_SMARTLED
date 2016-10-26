@@ -24,12 +24,6 @@ void vendor_free(void *ptr);
 void vendor_printf(int log_level, const char* log_tag, const char* file,
 	const char* fun, int line, const char* fmt, ...);
 
-//product model/secret, i.e.
-//model		"ALINKTEST_LIVING_LIGHT_SMARTLED"
-//key		"ljB6vqoLzmP8fGkE6pon"
-//secret	"YJJZjytOCXDhtQqip4EjWbhR95zTgI92RVjzjyZF"
-char *vendor_get_model(void);
-char *vendor_get_key(void);
 char *vendor_get_secret(void);
 //wifi mac string, format xx:xx:xx:xx:xx:xx
 //Note: return NULL if product is registered by sn
@@ -43,7 +37,6 @@ char *vendor_get_sn(void);
 //11 -- alink 1.1
 //20 -- alink 2.0
 int vendor_alink_version(void);
-
 //aws库调用该函数来接收80211无线包
 //若平台上通过注册回调函数aws_80211_frame_handler()来收包时，
 //将该函数填为vendor_msleep(100)

@@ -1,5 +1,3 @@
-
-
 #include <stdarg.h>
 #include "esp_common.h"
 
@@ -13,6 +11,8 @@
 #include <espressif/esp_libc.h>	//for aws_printf
 #include <espressif/esp_wifi.h> //for wifi_set_channel
 #include "alink_export.h"
+
+#include "user_config.h"
 
 #ifndef ETH_ALEN
 #define ETH_ALEN	(6)
@@ -266,23 +266,10 @@ int vendor_broadcast_notification(char *msg, int msg_num)
 	return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//sample code
 
-//#define PASS_THROUGH
-
-#ifdef PASS_THROUGH
-#define product_model		"ALINKTEST_LIVING_LIGHT_SMARTLED_LUA"
-#define product_secret		"W6tXrtzgQHGZqksvJLMdCPArmkecBAdcr2F5tjuF"
-#else
-//TODO: update these product info
-#define product_model		"ALINKTEST_LIVING_LIGHT_SMARTLED"
-#define product_secret		"YJJZjytOCXDhtQqip4EjWbhR95zTgI92RVjzjyZF"
-#endif
-
-//#define device_mac		"00:01:02:03:04:05"
-char *vendor_get_model(void) { return product_model; }
-char *vendor_get_secret(void) { return product_secret; }
+char *vendor_get_secret(void) { 
+    return vendor_get_alink_secret(); 
+}
 char *vendor_get_mac(void) { 
     uint8 macaddr[6];
 	static char mac[STR_MAC_LEN];
@@ -317,35 +304,3 @@ int vendor_connect_ap(char *ssid, char *passwd)
 	return 0;
 }
 
-int aws_sample(void)
-{
-	char ssid[32 + 1];
-	char passwd[64 + 1];
-	char bssid[6];
-	char auth;
-	char encry;
-	char channel;
-
-	int ret;
-
-	aws_start(NULL, NULL, NULL, NULL);
-
-	ret = aws_get_ssid_passwd(&ssid[0], &passwd[0], &bssid[0], &auth, &encry, &channel);
-	if (!ret) {
-		aws_printf("alink wireless setup timeout!\n");
-		ret = -1;
-		goto out;
-	}
-
-	aws_printf("ssid:%s, passwd:%s\n", ssid, passwd);
-
-	vendor_connect_ap(ssid, passwd);
-
-	aws_notify_app();
-
-	ret = 0;
-out:
-	aws_destroy();
-
-	return ret;
-}

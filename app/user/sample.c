@@ -32,22 +32,21 @@
 #include "alink_export_rawdata.h"
 #include "esp_common.h"
 #include "user_config.h"
-#if USER_UART_CTRL_DEV_EN
-#include "user_uart.h" // user uart handler head
-#endif
-#if USER_PWM_LIGHT_EN
-#include "user_light.h"  // user pwm light head
-#endif
+
 #include "ledctl.h" 
+#include "hnt_interface.h"
+
+#if USER_VIRTUAL_DEV_TEST
 #include "user_smartled.h" 
+#else
+#include "user_uart.h"
+#endif
 
 #define wsf_deb  os_printf
 #define wsf_err os_printf
-//#define PASS_THROUGH 
-//#define SUB_DEV_ENABLE // 子设备功能sample 未实现
-/* 设备信息：根据网页注册信息导出的电子表格更新对应信息 */
 
-/*alink-sdk 信息 */
+deviceParameterTable_t DeviceCustomParamTable = {NULL, 0};
+customInfo_t *DeviceCustomInfo = NULL;
 
 extern void alink_sleep(int);
 /*do your job here*/
@@ -62,7 +61,7 @@ char *device_attr[5] = { "OnOff_Power", "Color_Temperature", "Light_Brightness",
 };   // this is a demo json package data, real device need to update this package
 
 const char *main_dev_params =
-    "{\"OnOff_Power\": { \"value\": \"%d\" }, \"Color_Temperature\": { \"value\": \"%d\" }, \"Light_Brightness\": { \"value\": \"%d\" }, \"TimeDelay_PowerOff\": { \"value\": \"%d\"}, \"WorkMode_MasterLight\": { \"value\": \"%d\"}}";
+    "{\"OnOff_Power\": { \"value\": \"%s\" }, \"Color_Temperature\": { \"value\": \"%d\" }, \"Light_Brightness\": { \"value\": \"%d\" }, \"TimeDelay_PowerOff\": { \"value\": \"%d\"}, \"WorkMode_MasterLight\": { \"value\": \"%d\"}}";
 
 static char device_status_change = 1;
 
@@ -72,6 +71,11 @@ static int ICACHE_FLASH_ATTR alink_device_post_data(alink_down_cmd_ptr down_cmd)
 	alink_up_cmd up_cmd;
 	int ret = ALINK_ERR;
 	char *buffer = NULL;
+    deviceParameter_t *deviceParam;  
+    int i;
+    int len = 0;    
+    char value_char[16];
+    
 	if (device_status_change) {
 		wsf_deb("##[%s][%s|%d]Malloc %u. Available memory:%d.\n", __FILE__, __FUNCTION__, __LINE__,
 			buffer_size, system_get_free_heap_size());
@@ -81,10 +85,28 @@ static int ICACHE_FLASH_ATTR alink_device_post_data(alink_down_cmd_ptr down_cmd)
 			return -1;
 
 		memset(buffer, 0, buffer_size);
+#if USER_VIRTUAL_DEV_TEST
+        eSmartLedGetPower(NULL,value_char);
 
-		sprintf(buffer, main_dev_params, eSmartLedGetPower(),
+		sprintf(buffer, main_dev_params, value_char,
 			virtual_device.temp_value, virtual_device.light_value,
 			virtual_device.time_delay, virtual_device.work_mode);
+#else
+        len = sprintf(buffer, "{");
+
+        for (i = 0, deviceParam = DeviceCustomParamTable.table; 
+             i < DeviceCustomParamTable.tableSize;
+             i++, deviceParam++) {        
+                if(deviceParam->getParameterFunc){
+                    deviceParam->getParameterFunc(deviceParam->paramName, value_char);
+                    len += sprintf(buffer+len, "\"%s\": { \"value\": \"%s\" },",
+                        deviceParam->paramName,value_char);                    
+                    }
+        }
+        len = len-1;//strip last ","
+        len += sprintf(buffer+len, "}");
+#endif
+
 		up_cmd.param = buffer;
 		if (down_cmd != NULL) {
 			up_cmd.target = down_cmd->account;
@@ -128,6 +150,8 @@ int ICACHE_FLASH_ATTR main_dev_set_device_status_callback(alink_down_cmd_ptr dow
 	json_value *jstr_value;
 	int value = 0, i = 0;
 	char *value_str = NULL;
+    deviceParameter_t *deviceParam;  
+    int ret = 0;
 
 	wsf_deb("%s %d \n",__FUNCTION__,__LINE__);
 	wsf_deb("%s %d\n%s\n",down_cmd->uuid,down_cmd->method, down_cmd->param);
@@ -136,6 +160,9 @@ int ICACHE_FLASH_ATTR main_dev_set_device_status_callback(alink_down_cmd_ptr dow
 
 
 #if USER_VIRTUAL_DEV_TEST
+    char power_char[8];
+    int power_value;
+
 	for (i = 0; i < 5; i++) 
 	{
 		jstr = json_object_object_get_e(jptr, device_attr[i]);
@@ -145,8 +172,10 @@ int ICACHE_FLASH_ATTR main_dev_set_device_status_callback(alink_down_cmd_ptr dow
 			value = atoi(value_str);
 			switch (i) {
 			case 0:
-				if (eSmartLedGetPower() != value) {
-					eSmartLedSetPower(value);
+                eSmartLedGetPower(NULL,power_char);
+                power_value = atoi(power_char);
+				if (power_value != value) {
+					eSmartLedSetPower(NULL,value_str);
 				}
 				break;
 			case 1:
@@ -174,6 +203,22 @@ int ICACHE_FLASH_ATTR main_dev_set_device_status_callback(alink_down_cmd_ptr dow
 			}
 		}
 	}
+#else
+        for (i = 0,deviceParam = DeviceCustomParamTable.table; 
+            i < DeviceCustomParamTable.tableSize; 
+            i++, deviceParam++) 
+        {
+            jstr = json_object_object_get_e(jptr, deviceParam->paramName);
+            jstr_value = json_object_object_get_e(jstr, "value");
+            value_str = json_object_to_json_string_e(jstr_value);
+                        
+            if (value_str) {
+                wsf_deb("%s %s\n",deviceParam->paramName,value_str);
+                
+                if(deviceParam->setParameterFunc)
+                    ret = deviceParam->setParameterFunc(deviceParam->paramName, value_str);
+            }
+        }
 #endif
 
 	json_value_free(jptr);
@@ -363,30 +408,26 @@ int ICACHE_FLASH_ATTR alink_handler_systemstates_callback(void *dev_mac, void *s
 void ICACHE_FLASH_ATTR alink_fill_deviceinfo(struct device_info *deviceinfo)
 {
 	uint8 macaddr[6];
-	//fill main device info here
-	strcpy(deviceinfo->name, DEV_NAME);
-	strcpy(deviceinfo->sn, DEV_SN);
-	strcpy(deviceinfo->key, ALINK_KEY);
-	strcpy(deviceinfo->model, DEV_MODEL);
-	strcpy(deviceinfo->secret, ALINK_SECRET);
-	strcpy(deviceinfo->type, DEV_TYPE);
-	strcpy(deviceinfo->version, DEV_VERSION);
-	strcpy(deviceinfo->category, DEV_CATEGORY);
-	strcpy(deviceinfo->manufacturer, DEV_MANUFACTURE);
-	strcpy(deviceinfo->key_sandbox, ALINK_KEY_SANDBOX);
-	strcpy(deviceinfo->secret_sandbox, ALINK_SECRET_SANDBOX);
+	strcpy(deviceinfo->name, DeviceCustomInfo->name);
+	strcpy(deviceinfo->sn, DeviceCustomInfo->sn);
+	strcpy(deviceinfo->brand, DeviceCustomInfo->brand);
+	strcpy(deviceinfo->key, DeviceCustomInfo->key);
+	strcpy(deviceinfo->model, DeviceCustomInfo->model);
+	strcpy(deviceinfo->secret, DeviceCustomInfo->secret);
+	strcpy(deviceinfo->type, DeviceCustomInfo->type);
+	strcpy(deviceinfo->version, DeviceCustomInfo->version);
+	strcpy(deviceinfo->category, DeviceCustomInfo->category);
+	strcpy(deviceinfo->manufacturer, DeviceCustomInfo->manufacturer);
+	strcpy(deviceinfo->key_sandbox, DeviceCustomInfo->key_sandbox);
+	strcpy(deviceinfo->secret_sandbox, DeviceCustomInfo->secret_sandbox);
 
 	if (wifi_get_macaddr(0, macaddr)) {
 		wsf_deb("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 		snprintf(deviceinfo->mac, sizeof(deviceinfo->mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
 	} else
 		strcpy(deviceinfo->mac, DEV_MAC);
-//	if ((macaddr[4] == 0xc7) && (macaddr[5] == 0x18))	// the mac  18:fe:34:a2:c7:18   binding CHIPID  "3D0044000F47333139373030" 
-//	{
-//		strcpy(deviceinfo->cid, DEV_CHIPID);
-//	} else {
-		snprintf(deviceinfo->cid, sizeof(deviceinfo->cid), "%024d", system_get_chip_id());
-//	}
+
+	snprintf(deviceinfo->cid, sizeof(deviceinfo->cid), "%024d", system_get_chip_id());
 	wsf_deb("DEV_MODEL:%s \n", DEV_MODEL);
 }
 
@@ -497,7 +538,7 @@ int ICACHE_FLASH_ATTR alink_demo()
     alink_register_cb(ALINK_FUNC_OTA_UPGRADE, esp_ota_upgrade);
 	/*start alink-sdk */
     set_thread_stack_size(&g_thread_stacksize);
-    #ifdef PASS_THROUGH		
+#ifdef PASS_THROUGH		
 	alink_start_rawdata(&main_dev, rawdata_get_callback, rawdata_set_callback);
 #else // 非透传方式(设备与服务器采用json格式数据通讯)
 	main_dev.dev_callback[ACB_GET_DEVICE_STATUS] = main_dev_get_device_status_callback;
@@ -517,7 +558,7 @@ int ICACHE_FLASH_ATTR alink_demo()
 		if (wifi_get_macaddr(0, macaddr)) {
 			os_printf("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 			snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
-			os_printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!aws_notify_app %s %s\n", DEV_MODEL,mac);
+			os_printf("aws_notify_app %s %s\n", DEV_MODEL,mac);
             aws_notify_app(DEV_MODEL, mac, ""); // if not factory reset , 
 		}
 	}
@@ -558,5 +599,27 @@ char *platform_get_os_version(char os_ver[PLATFORM_OS_VERSION_LEN])
 char *platform_get_module_name(char name_str[PLATFORM_MODULE_NAME_LEN])
 {
     return strncpy(name_str,"WME66",PLATFORM_MODULE_NAME_LEN);
+}
+
+void ICACHE_FLASH_ATTR
+hnt_param_array_regist(deviceParameter_t *custom_param_array, uint32 array_size)
+{
+    DeviceCustomParamTable.tableSize = array_size;
+    DeviceCustomParamTable.table = custom_param_array;
+}
+
+void ICACHE_FLASH_ATTR
+hnt_custom_info_regist(customInfo_t *customInfo)
+{
+    DeviceCustomInfo = customInfo;   
+}
+
+char* vendor_get_model(void)
+{
+    return DeviceCustomInfo->model;
+}
+char* vendor_get_alink_secret(void)
+{
+    return DeviceCustomInfo->secret;
 }
 

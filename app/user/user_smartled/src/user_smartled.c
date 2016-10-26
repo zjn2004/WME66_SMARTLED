@@ -4,6 +4,7 @@
 #include "user_smartled.h"
 
 #include "user_config.h"
+#include "hnt_interface.h"
 
 #include "driver/key.h"
 #include "driver/gpio.h"
@@ -12,27 +13,6 @@
 #if USER_SMARTLED
 
 LOCAL uint8 smartled_switch_status = 0;
-
-hnt_power_led_func smartled_power_led_func = NULL;
-void ICACHE_FLASH_ATTR
-smartled_power_led_on(void)
-{    
-    if(smartled_power_led_func)
-        smartled_power_led_func(POWER_LED_ON);
-}
-
-void ICACHE_FLASH_ATTR
-smartled_power_led_off(void)
-{
-    if(smartled_power_led_func)
-        smartled_power_led_func(POWER_LED_OFF);
-}
-
-void ICACHE_FLASH_ATTR
-hnt_power_led_func_regist(void *func)
-{
-    smartled_power_led_func = (hnt_power_led_func)func;
-}
 
 void ICACHE_FLASH_ATTR
 smartled_power_led_status(unsigned char power_led_status)
@@ -44,22 +24,24 @@ smartled_power_led_status(unsigned char power_led_status)
 }
 
 int ICACHE_FLASH_ATTR
-eSmartLedGetPower(void)
+eSmartLedGetPower(char *paramName, char *value)
 {        
-    return smartled_switch_status;
+    sprintf(value, "%d", smartled_switch_status);
+
+    return 0;
 }
 
 int ICACHE_FLASH_ATTR
-eSmartLedSetPower(uint8 value)
+eSmartLedSetPower(char *paramName, char *value)
 {
-    smartled_switch_status = value;   
+    smartled_switch_status = atoi(value);   
     smartled_switch_status = (smartled_switch_status? GPIO_VALUE_1 : GPIO_VALUE_0);
     
     GPIO_OUTPUT_SET(SMARTLED_CTRL_IO_GPIO, smartled_switch_status);
     if(smartled_switch_status)
-        smartled_power_led_on();
+        smartled_power_led_status(POWER_LED_ON);
     else
-        smartled_power_led_off();
+        smartled_power_led_status(POWER_LED_OFF);
 
     return 0;    
 }
@@ -178,11 +160,11 @@ smartled_power_short_press(void)
 
     if(smartled_switch_status)
     {
-        eSmartLedSetPower(0);        
+        eSmartLedSetPower(NULL,"0");        
     }
     else
     {
-        eSmartLedSetPower(1);                
+        eSmartLedSetPower(NULL,"1");                
     }
     hnt_device_status_change();
 }
@@ -238,19 +220,52 @@ smartled_key_button_init(void)
 	key_init(&keys);
 }
 
+deviceParameter_t DeviceParamList[] = {
+{SMARTLED_POWER, eSmartLedGetPower, eSmartLedSetPower}
+//{SMARTLED_COLOR_TEMPERATURE, eSmartLedGetVirtualDevice, eSmartLedSetVirtualDevice},
+//{SMARTLED_LIGHT_BRIGHTNESS, eSmartLedGetVirtualDevice, eSmartLedSetVirtualDevice},
+//{SMARTLED_TIMEDELAY_POWEROFF, eSmartLedGetVirtualDevice, eSmartLedSetVirtualDevice},
+//{SMARTLED_WORKMODE_MASTERLIGHT, eSmartLedGetVirtualDevice, eSmartLedSetVirtualDevice},
+//{SMARTLED_WORKMODE, NULL, eSmartLedSetVirtualDevice}
+};
+
+
+customInfo_t customInfo;
+
+void ICACHE_FLASH_ATTR
+hnt_custom_info_init(void)
+{
+	strcpy(customInfo.name, DEV_NAME);
+	strcpy(customInfo.sn, DEV_SN);
+	strcpy(customInfo.model, DEV_MODEL);
+	strcpy(customInfo.brand, DEV_BRAND);
+
+	strcpy(customInfo.type, DEV_TYPE);
+	strcpy(customInfo.version, DEV_VERSION);
+	strcpy(customInfo.category, DEV_CATEGORY);
+	strcpy(customInfo.manufacturer, DEV_MANUFACTURE);
+
+	strcpy(customInfo.key, ALINK_KEY);
+	strcpy(customInfo.secret, ALINK_SECRET);
+    
+	strcpy(customInfo.key_sandbox, ALINK_KEY_SANDBOX);
+	strcpy(customInfo.secret_sandbox, ALINK_SECRET_SANDBOX);
+
+    hnt_custom_info_regist(&customInfo);
+}
+
 
 void
 user_custom_init(void)
 {        
 	os_printf("%s,%d\n", __FUNCTION__,__LINE__);
+    hnt_custom_info_init();
+    
+    hnt_param_array_regist(&DeviceParamList[0], sizeof(DeviceParamList)/sizeof(DeviceParamList[0]));
 
-/*wifi led install */
     hnt_wifi_led_func_regist(smartled_wifi_status_led);
-    hnt_power_led_func_regist(smartled_power_led_status);
 
     smartled_gpio_status_init();
-
-/*key button init*/
     smartled_key_button_init();
 }
 #endif
