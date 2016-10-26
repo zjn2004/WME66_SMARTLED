@@ -174,7 +174,6 @@ void ICACHE_FLASH_ATTR user_uart_task(void *pvParameters)
 
 void ICACHE_FLASH_ATTR user_uart_dev_start(void)
 {
-    uart_init_new();   // cfg uart0 connection device MCU, cfg uart1 TX debug output
     xQueueCusUart = xQueueCreate((unsigned portBASE_TYPE)CUS_UART0_QUEUE_LENGTH, sizeof(CusUartIntrPtr));
     uart_rsp_q = xQueueCreate((unsigned portBASE_TYPE)4, sizeof(CusUartIntrPtr));
 

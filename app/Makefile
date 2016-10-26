@@ -14,6 +14,8 @@
 TARGET = eagle
 #FLAVOR = release
 FLAVOR = debug
+USER = smartled
+#USER = lexyairpurifier
 
 #EXTRA_CCFLAGS += -u
 
@@ -25,7 +27,13 @@ SUBDIRS=    \
 	user    \
 	driver  \
 	user/ledctl/src \
-	user/user_smartled/src
+        user/user_uart/src
+
+ifeq ($(USER),smartled)
+    SUBDIRS += user/user_smartled/src
+else ifeq ($(USER),lexyairpurifier)
+    SUBDIRS += user/user_lexyairpurifier/src
+endif
 
 endif # } PDIR
 
@@ -51,7 +59,14 @@ COMPONENTS_eagle.app.v6 = \
 	user/libuser.a    \
 	driver/libdriver.a \
 	user/ledctl/src/libuser_ledctl.a \
-	user/user_smartled/src/libuser_smartled.a
+	user/user_uart/src/libuser_useruart.a
+
+ifeq ($(USER),smartled)
+    COMPONENTS_eagle.app.v6 += user/user_smartled/src/libuser_smartled.a
+else ifeq ($(USER),lexyairpurifier)
+    COMPONENTS_eagle.app.v6 += user/user_lexyairpurifier/src/libuser_lexyairpurifier.a
+endif
+
 
 LINKFLAGS_eagle.app.v6 = \
 	-L$(SDK_PATH)/lib        \
@@ -126,7 +141,11 @@ DDEFINES +=				\
 INCLUDES := $(INCLUDES) -I $(PDIR)include
 INCLUDES += -I $(PDIR)user/user_uart/include
 INCLUDES += -I $(PDIR)user/ledctl/include
+ifeq ($(USER),smartled)
 INCLUDES += -I $(PDIR)user/user_smartled/include
+else ifeq ($(USER),lexyairpurifier)
+INCLUDES += -I $(PDIR)user/user_lexyairpurifier/include
+endif
 
 sinclude $(SDK_PATH)/Makefile
 

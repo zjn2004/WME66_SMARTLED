@@ -12,7 +12,7 @@
 #     a generated lib/image xxx.a ()
 #
 ifndef PDIR
-GEN_LIBS = libuser_uart.a
+GEN_LIBS = libuser_useruart.a
 endif
 
 

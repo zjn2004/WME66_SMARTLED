@@ -527,6 +527,10 @@ void ICACHE_FLASH_ATTR user_demo(void)
     
 	uart_init_new();
     user_custom_init();
+    
+#if USER_UART_CTRL_DEV_EN
+    user_uart_dev_start();  // create a task to handle uart data
+#endif
 
 	os_printf("SDK version:%s\n", system_get_sdk_version());
 	os_printf("heap_size %d\n", system_get_free_heap_size());
@@ -554,10 +558,6 @@ void ICACHE_FLASH_ATTR user_demo(void)
     
 	xTaskCreate(startdemo_task, "startdemo_task",(256*4), NULL, 2, NULL);
 	
-#if USER_UART_CTRL_DEV_EN
-	user_uart_dev_start();  // create a task to handle uart data
-#endif
-
 	return;
 }
 

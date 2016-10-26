@@ -425,10 +425,10 @@ void ICACHE_FLASH_ATTR alink_fill_deviceinfo(struct device_info *deviceinfo)
 		wsf_deb("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 		snprintf(deviceinfo->mac, sizeof(deviceinfo->mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
 	} else
-		strcpy(deviceinfo->mac, DEV_MAC);
+		strcpy(deviceinfo->mac, "19:FE:34:A2:C7:1A");
 
 	snprintf(deviceinfo->cid, sizeof(deviceinfo->cid), "%024d", system_get_chip_id());
-	wsf_deb("DEV_MODEL:%s \n", DEV_MODEL);
+	wsf_deb("DEV_MODEL:%s \n", DeviceCustomInfo->model);
 }
 
 
@@ -558,8 +558,8 @@ int ICACHE_FLASH_ATTR alink_demo()
 		if (wifi_get_macaddr(0, macaddr)) {
 			os_printf("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 			snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
-			os_printf("aws_notify_app %s %s\n", DEV_MODEL,mac);
-            aws_notify_app(DEV_MODEL, mac, ""); // if not factory reset , 
+			os_printf("aws_notify_app %s %s\n", vendor_get_model(),mac);
+            aws_notify_app(vendor_get_model(), mac, ""); // if not factory reset , 
 		}
 	}
 

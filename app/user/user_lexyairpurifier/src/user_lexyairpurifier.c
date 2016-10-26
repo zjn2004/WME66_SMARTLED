@@ -3,10 +3,10 @@
 
 #include "user_uart.h"
 #include "hnt_interface.h"
-#include "user_lexyairpurifier.h"
 #include "user_config.h"
+
+#include "user_lexyairpurifier.h"
 #include "ledctl.h"
-#include "hnt_config.h"
 
 #if USER_LEXY_AIR_PURIFIER
 static uart_get_AirPurifier_status_t gLexyAirPurifierStatus;
@@ -389,8 +389,6 @@ deviceParameter_t DeviceParamList[] = {
 };
 
 customInfo_t customInfo;
-char alink_tpsk[64+1]={0};
-
 void ICACHE_FLASH_ATTR
 hnt_custom_info_init(void)
 {
@@ -411,9 +409,6 @@ hnt_custom_info_init(void)
 	strcpy(customInfo.secret_sandbox, ALINK_SECRET_SANDBOX);
 
     hnt_custom_info_regist(&customInfo);
-    
-	strcpy(alink_tpsk, ALINK_TPSK);
-    hnt_vendor_tpsk_regist(alink_tpsk);    
 }
 
 void
