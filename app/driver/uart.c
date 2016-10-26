@@ -350,7 +350,6 @@ LOCAL void
 uart0_rx_intr_handler(void *para)
 {
 #if USER_UART_CTRL_DEV_EN
-
     /* uart0 and uart1 intr combine togther, when interrupt occur, see reg 0x3ff20020, bit2, bit0 represents
     * uart1 and uart0 respectively
     */
@@ -472,7 +471,7 @@ uart_init_new(void)
     UART_WaitTxFifoEmpty(UART1);
 
     UART_ConfigTypeDef uart_config;
-    uart_config.baud_rate    = BIT_RATE_115200;
+    uart_config.baud_rate    = BIT_RATE_9600;
     uart_config.data_bits     = UART_WordLength_8b;
     uart_config.parity          = USART_Parity_None;
     uart_config.stop_bits     = USART_StopBits_1;
@@ -500,14 +499,6 @@ uart_init_new(void)
     UART_SetPrintPort(UART1);
     UART_intr_handler_register(uart0_rx_intr_handler,NULL);
     ETS_UART_INTR_ENABLE();
-
-    /*
-    UART_SetWordLength(UART0,UART_WordLength_8b);
-    UART_SetStopBits(UART0,USART_StopBits_1);
-    UART_SetParity(UART0,USART_Parity_None);
-    UART_SetBaudrate(UART0,74880);
-    UART_SetFlowCtrl(UART0,USART_HardwareFlowControl_None,0);
-    */
 #else
     UART_WaitTxFifoEmpty(UART0);
     UART_WaitTxFifoEmpty(UART1);
