@@ -589,8 +589,10 @@ int ICACHE_FLASH_ATTR alink_demo()
 			os_printf("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 			snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
 			os_printf("aws_notify_app %s %s\n", vendor_get_model(),mac);
-            aws_notify_app(vendor_get_model(), mac, ""); // if not factory reset , 
-		}
+//            aws_notify_app(vendor_get_model(), mac, ""); // if not factory reset , 
+            aws_notify_app();
+
+        }
 	}
 
 
