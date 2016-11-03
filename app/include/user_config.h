@@ -35,7 +35,7 @@ extern  int need_factory_reset ;
 
 #define USER_VIRTUAL_DEV_TEST	 (1)
 
-#define CUS_GLOBAL_VER "AlinkV1.0.02-20160920"
+#define CUS_GLOBAL_VER "AlinkV1.1.02-20161102"
 
 
 #define ESP_DBG(a) os_printf("[dbg@%s,%d]",__FUNCTION__,__LINE__);os_printf a;os_printf("\r\n")   // for dbg print

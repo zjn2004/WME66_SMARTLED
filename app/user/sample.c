@@ -65,6 +65,19 @@ const char *main_dev_params =
 
 static char device_status_change = 1;
 
+void debug_printf_data(char *data, int len)
+{
+	int i = 0;
+	os_printf("\n*******print len[%d]******\n",len);
+	for(i=0; i<len; i++)
+	{
+		os_printf("%02x ",*(data+i));
+	}
+	os_printf("\n__________end_________\n");
+	return;
+}
+
+
 #define buffer_size 256
 static int ICACHE_FLASH_ATTR alink_device_post_data(alink_down_cmd_ptr down_cmd)
 {
@@ -233,7 +246,9 @@ int ICACHE_FLASH_ATTR main_dev_get_device_status_callback(alink_down_cmd_ptr dow
 {
 	wsf_deb("%s %d \n", __FUNCTION__, __LINE__);
 	wsf_deb("%s %d\n%s\n", down_cmd->uuid, down_cmd->method, down_cmd->param);
-	device_status_change = 1;
+
+	if(!device_status_change)
+		device_status_change = 1;   // event send current real device status to the alink server
 
 	return 0;		//alink_device_post_data(down_cmd);
 }
@@ -320,6 +335,8 @@ int ICACHE_FLASH_ATTR alink_device_post_raw_data(void)
 	int len = 8, ret = 0;
 	char rawdata[8] = { 0 };
 	if (device_status_change) {
+
+		ESP_DBG(("********POST DATA*************\n"));
 		wsf_deb("[%s][%d|  Available memory:%d.\n", __FILE__, __LINE__,system_get_free_heap_size());
 
 		delta_time = system_get_time() - delta_time;
@@ -348,7 +365,9 @@ int ICACHE_FLASH_ATTR rawdata_get_callback(const char *in_rawdata, int in_len, c
 	wsf_deb("%s %d \n", __FUNCTION__, __LINE__);
 	//ret=alink_device_post_raw_data(); //  此例是假设能同步获取到虚拟设备数据, 实际应用中,处理服务器指令是异步方式,需要厂家处理完毕后主动上报一次设备状态
 // do your job end!
-	device_status_change = 1;
+
+	if(!device_status_change)
+		device_status_change = 1;   // event send current real device status to the alink server
 
 	return ret;
 }
@@ -365,7 +384,9 @@ int ICACHE_FLASH_ATTR rawdata_set_callback(char *rawdata, int len)
 	//ret=alink_device_post_raw_data();
 	// do your job end!
 	delta_time = system_get_time();
-	device_status_change = 1;
+
+	if(!device_status_change)
+		device_status_change = 1;   // event send current real device status to the alink server
 	return ret;
 }
 
@@ -437,6 +458,7 @@ void ICACHE_FLASH_ATTR alink_fill_deviceinfo(struct device_info *deviceinfo)
 static int ICACHE_FLASH_ATTR write_config(unsigned char *buffer, unsigned int len)
 {
 	int res = 0, pos = 0;
+	ESP_DBG(("...write cfg....."));
 
 	if (buffer == NULL) {
 		return ALINK_ERR;
@@ -447,11 +469,14 @@ static int ICACHE_FLASH_ATTR write_config(unsigned char *buffer, unsigned int le
 	res = spi_flash_erase_sector(LFILE_START_ADDR / 4096);	//one sector is 4KB 
 	if (res != SPI_FLASH_RESULT_OK) {
 		wsf_err("erase flash data fail\n");
+		return ALINK_ERR;
 	} else {
 		wsf_err("erase flash data %d Byte\n", res);
 	}
 	os_printf("write data:\n");
 
+	debug_printf_data(buffer, len);
+	ESP_DBG((">>>>>>>>>>>>>>>"));
 
 	res = spi_flash_write((LFILE_START_ADDR), (uint32 *) buffer, len);
 	if (res != SPI_FLASH_RESULT_OK) {
@@ -468,7 +493,10 @@ static int ICACHE_FLASH_ATTR read_config(unsigned char *buffer, unsigned int len
 
 	int res = 0;
 	int pos = 0;
+	ESP_DBG(("...test read cfg len [%d].....", len));
 	res = spi_flash_read(LFILE_START_ADDR, (uint32 *) buffer, len);
+	debug_printf_data(buffer, len);
+	ESP_DBG((">>>>>>>>>>>>>>>"));
 	if (res != SPI_FLASH_RESULT_OK) {
 		wsf_err("read flash data error\n");
 		return ALINK_ERR;
@@ -520,7 +548,9 @@ void set_thread_stack_size(struct thread_stacksize * p_thread_stacksize)
 int ICACHE_FLASH_ATTR alink_demo()
 {
 	struct device_info main_dev;
-	
+#if USER_UART_CTRL_DEV_EN
+	dbg_get_recv_times = 0;
+#endif
 	memset(&main_dev, 0, sizeof(main_dev));
 	alink_fill_deviceinfo(&main_dev);	// 必须根据PRD表格更新设备信息
 	alink_set_loglevel(ALINK_LL_DEBUG | ALINK_LL_INFO | ALINK_LL_WARN | ALINK_LL_ERROR);
@@ -553,8 +583,8 @@ int ICACHE_FLASH_ATTR alink_demo()
 
 	if(need_notify_app) {
 		need_notify_app = 0;
-		uint8 macaddr[6];
-		char mac[17+1];
+		uint8 macaddr[6] ={0};
+		char mac[17+1] = {0};
 		if (wifi_get_macaddr(0, macaddr)) {
 			os_printf("macaddr=%02x:%02x:%02x:%02x:%02x:%02x\n", MAC2STR(macaddr));
 			snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
@@ -565,7 +595,13 @@ int ICACHE_FLASH_ATTR alink_demo()
 
 
 	/* 设备主动上报数据 */
-	while (sample_running) {
+	
+	if(!device_status_change)
+		device_status_change = 0x01;
+    
+	while(sample_running) {
+
+		//os_printf("%s %d \n",__FUNCTION__,__LINE__);
 #ifdef PASS_THROUGH
 		alink_device_post_raw_data();
 #else

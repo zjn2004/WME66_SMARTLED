@@ -8,6 +8,8 @@
 #include "user_config.h"
 #include "esp_ota.h"
 #include "esp_system.h"
+int dbg_get_recv_times = 0;
+
 #if USER_UART_CTRL_DEV_EN
 #include "user_uart.h" // user uart handler head
 #endif
@@ -58,10 +60,16 @@ void ICACHE_FLASH_ATTR smartconfig_task(void *pvParameters)
     char encry;
     char channel;
     int ret;
-	
+    char dev_mac[STR_MAC_LEN]; 
+	char macaddr[32] = {0};
+    
     os_printf("smartconfig_task : aws_start\n");
-    aws_start(NULL,NULL,NULL,NULL);
-
+	if(!wifi_get_macaddr(0,macaddr)){
+		os_printf("[dbg][%s##%u]\n",__FUNCTION__,__LINE__);
+	};
+    snprintf(dev_mac, sizeof(dev_mac), "%02x:%02x:%02x:%02x:%02x:%02x", MAC2STR(macaddr));
+	aws_start(vendor_get_model(), vendor_get_alink_secret(), dev_mac, NULL);
+    
     ret = aws_get_ssid_passwd(&ssid[0], &passwd[0], &bssid[0], &auth, &encry, &channel);
     if (!ret) {
         int flag = 0;
@@ -71,7 +79,7 @@ void ICACHE_FLASH_ATTR smartconfig_task(void *pvParameters)
         
         setSmartConfigFlag(flag+1);
         
-        vTaskDelay(100 / portTICK_RATE_MS);	 // 100 ms
+        vTaskDelay(200 / portTICK_RATE_MS);	 // 100 ms
 		system_restart();
         
     	goto out;
@@ -569,7 +577,7 @@ int upgrade_download(char *pusrdata, unsigned short length)
 {
     char *ptr = NULL;
     char *ptmp2 = NULL;
-    char lengthbuffer[32];
+    char lengthbuffer[32] ={0};
     bool ret = false;
     os_printf("%s %d totallength =%d length = %d \n",__FUNCTION__,__LINE__,totallength,length);
     if( (pusrdata == NULL )||length < 1) {

@@ -1,8 +1,8 @@
 #include <stdarg.h>
 #include "esp_common.h"
 
-#include "aws_platform.h"
-#include "aws_lib.h"
+#include "driver/aws_platform.h"
+#include "driver/aws_lib.h"
 
 #include "lwip/sockets.h"
 #include "lwip/err.h"

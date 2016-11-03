@@ -30,6 +30,10 @@
 
 #include "driver/uart.h"
 #include "user_uart.h"
+#define UART_DBG_PRINT_EN 1  // @bill
+
+unsigned char user_uart_print_flag = 0;
+ALINK_USER_OWN_CFG alink_user_cfg_data;
 
 enum {
     UART_EVENT_RX_CHAR,
@@ -62,6 +66,10 @@ uart_tx_one_char(uint8 uart, uint8 TxChar)
 LOCAL void
 uart1_write_char(char c)
 {
+if(0x01 == user_uart_print_flag)
+{
+	return;
+}
     if (c == '\n') {
         uart_tx_one_char(UART1, '\r');
         uart_tx_one_char(UART1, '\n');
@@ -74,6 +82,10 @@ uart1_write_char(char c)
 void
 uart0_write_char(char c)
 {
+	if(0x01 == user_uart_print_flag)
+	{
+		return;
+	}
     if (c == '\n') {
         uart_tx_one_char(UART0, '\r');
         uart_tx_one_char(UART0, '\n');
@@ -396,6 +408,23 @@ uart0_rx_intr_handler(void *para)
 
             WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_TOUT_INT_CLR);
 			printf("recv ok");
+			if(strncmp(uart_intr_data.rx_buf,"UART_DBG_DISABLE",strlen("UART_DBG_DISABLE")) == 0)
+			{
+				alink_user_cfg_data.uart_debug_en = 0x01;
+				spi_flash_erase_sector(ALINK_USER_CFG_SEC);	//one sector is 4KB 
+				spi_flash_write((ALINK_USER_CFG_SEC) * SPI_FLASH_SEC_SIZE,(uint32 *)&alink_user_cfg_data, sizeof(ALINK_USER_OWN_CFG));
+				printf("\n___uart will disable print,get_callbak_time [%d]___\n",dbg_get_recv_times);	
+				user_uart_print_flag = 0x01;
+			}
+			if(strncmp(uart_intr_data.rx_buf,"UART_DBG_ENABLE",strlen("UART_DBG_ENABLE")) == 0)
+			{
+				user_uart_print_flag = 0x00;
+				
+				alink_user_cfg_data.uart_debug_en = 0x00;
+				spi_flash_erase_sector(ALINK_USER_CFG_SEC);	//one sector is 4KB 
+				spi_flash_write((ALINK_USER_CFG_SEC) * SPI_FLASH_SEC_SIZE,(uint32 *)&alink_user_cfg_data, sizeof(ALINK_USER_OWN_CFG));
+				printf("\n___uart will enable print___, get_callbak_time [%d]\n",dbg_get_recv_times);	
+			}
 			xQueueSendFromISR(xQueueCusUart, (void *)&uart_intr_data, &xHigherPriorityTaskWoken);
 			portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 
