@@ -22,7 +22,7 @@
 #define ALINK_SECRET_SANDBOX "THnfRRsU5vu6g6m9X6uFyAjUWflgZ0iyGjdEneKm"
 
 #define DEV_SN "1234567890"
-#define DEV_VERSION "1.0.4"
+#define DEV_VERSION "1.0.7"
 #define DEV_MAC "19:FE:34:A2:C7:1A"	//"AA:CC:CC:CA:CA:01" // need get from device
 #define DEV_CHIPID "3D0044000F47333139373030"	// need get from device
 

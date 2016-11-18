@@ -31,11 +31,12 @@ extern  int need_factory_reset ;
 #define LFILE_SIZE 4096
 
 #define USER_UART_CTRL_DEV_EN 	 (0)   // support allink uart smart device
+
 #define USER_LEXY_AIR_PURIFIER 	 (0)   // support allink uart smart device
 
 #define USER_VIRTUAL_DEV_TEST	 (1)
 
-#define CUS_GLOBAL_VER "AlinkV1.1.02-20161102"
+#define CUS_GLOBAL_VER "AlinkV1.0.1-201611161518"
 
 
 #define ESP_DBG(a) os_printf("[dbg@%s,%d]",__FUNCTION__,__LINE__);os_printf a;os_printf("\r\n")   // for dbg print

@@ -399,6 +399,10 @@ int ICACHE_FLASH_ATTR alink_handler_systemstates_callback(void *dev_mac, void *s
 	char *mac = (char *)dev_mac;
 	enum ALINK_STATUS *state = (enum ALINK_STATUS *)sys_state;
 	switch (*state) {
+	case ALINK_STATUS_LINK_DOWN:
+		sprintf(uuid, "%s", alink_get_uuid(NULL));
+		wsf_deb("ALINK_STATUS_LINK_DOWN, mac %s uuid %s\n", mac, uuid);
+		break;          
 	case ALINK_STATUS_INITED:
 		sprintf(uuid, "%s", alink_get_uuid(NULL));
 		wsf_deb("ALINK_STATUS_INITED, mac %s uuid %s \n", mac, uuid);
